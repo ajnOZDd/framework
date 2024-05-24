@@ -1,77 +1,23 @@
 @echo off
 
-rem Définir les variables
-set "appname=springproject"
-set "librariesFolder=lib"
-set "sourceFolder=src"
-set "jspFolder=web"
-set "xmlfolder=conf"
-set "libFolder=lib"
-set "tempFolder=D:\fianarana\naina\temp"
-set "webInfFolder=%tempFolder%\WEB-INF"
-set "outputFolder=classes"
-set "tomcatWebappsPath=D:\apache-tomcat-10.1.16-windows-x64\apache-tomcat-10.1.16\webapps"
-set "frameworkTestFolder=D:\fianarana\naina\frameworktest\lib"
-set "tomcatBinPath=D:\apache-tomcat-10.1.16-windows-x64\apache-tomcat-10.1.16\bin"
+REM Définir le chemin du projet
+set PROJECT_DIR=D:\\fianarana\\naina\\framework
+set testframework=D:\\fianarana\\naina\\frameworktest\\lib
 
-rem Vérifier si le serveur Tomcat est déjà démarré
-tasklist | find /i "java.exe" > nul
-if errorlevel 1 goto tomcatNotRunning
-echo Serveur Tomcat déjà démarré, redémarrage en cours...
-goto tomcatRestart
+REM Accéder au répertoire du projet
+cd %PROJECT_DIR%
 
-:tomcatNotRunning
-echo Serveur Tomcat non démarré, démarrage en cours...
-call "%tomcatBinPath%\startup.bat"
-if errorlevel 1 goto tomcatStartFailed
+REM Définir le chemin du compilateur Java
+set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
+set PATH=%JAVA_HOME%\\bin;%PATH%
 
-rem Créer le dossier WEB-INF s'il n'existe pas
-if not exist "%webInfFolder%" mkdir "%webInefFolder%"
+REM Compiler les fichiers source Java
+javac -d target\\classes src\\main\\java\\*.java
 
-rem Supprimer les fichiers existants
-del /s /q "%webInfFolder%\*.jsp"
-del /s /q "%webInfFolder%\*.xml"
-del /s /q "%webInfFolder%\%outputFolder%\*.class"
+REM Créer le fichier JAR
+jar cvf framework-1.0.jar -C target\\classes .
 
-rem Créer un fichier temporaire avec la liste des fichiers Java
-dir /s /b /a-d "%sourceFolder%\*.java" > temp.txt
+REM Copier le JAR vers le dossier de test
+xcopy framework-1.0.jar %testframework% /y
 
-rem Créer le dossier WEB-INF\lib s'il n'existe pas
-if not exist "%webInfFolder%\%libFolder%" mkdir "%webInfFolder%\%libFolder%"
-
-rem Copier les bibliothèques dans le dossier WEB-INF\lib
-xcopy "%librariesFolder%" "%webInfFolder%\%libFolder%" /s /e /i /y 
-
-rem Copier les fichiers XML dans le dossier WEB-INF
-xcopy "%xmlfolder%" "%webInfFolder%" 
-
-rem Copier les fichiers JSP dans le dossier WEB-INF
-xcopy "%jspFolder%" "%webInfFolder%" /s /e /i /y 
-
-rem Compiler les fichiers Java
-javac -d "%webInfFolder%\%outputFolder%" -classpath "%librariesFolder%\*;%CLASSPATH%" @temp.txt
-
-rem Créer le fichier JAR
-jar cf "%frameworkTestFolder%\application.jar" -C "%webInfFolder%\%outputFolder%" .
-
-rem Créer le fichier WAR
-jar -cvf "%tempFolder%\%appname%.war" -C "%webInfFolder%" .
-
-rem Copier le fichier WAR dans le dossier des applications Tomcat
-xcopy  "%tempFolder%\%appname%.war" "%tomcatWebappsPath%"
-
-rem Copier le fichier JAR dans le dossier frameworktest
-xcopy "%frameworkTestFolder%\application.jar" "%frameworkTestFolder%" /y
-
-:tomcatRestart
-rem Attendre 10 secondes avant de redémarrer Tomcat pour que les modifications soient prises en compte
-timeout /t 10 > nul
-call "%tomcatBinPath%\shutdown.bat"
-call "%tomcatBinPath%\startup.bat"
-
-:tomcatStartFailed
-echo Erreur lors du démarrage du serveur Tomcat. Veuillez vérifier les logs.
-goto end
-
-:end
-echo Application déployée avec succès !
+echo Création du JAR terminée !
