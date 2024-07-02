@@ -1,23 +1,22 @@
 @echo off
 
-REM Définir le chemin du projet
-set PROJECT_DIR=D:\\fianarana\\naina\\framework
-set testframework=D:\\fianarana\\naina\\frameworktest\\lib
+rem Répertoire de base
+set BASE_DIR=%CD%
 
-REM Accéder au répertoire du projet
-cd %PROJECT_DIR%
 
-REM Définir le chemin du compilateur Java
-set JAVA_HOME=C:\\Program Files\\Java\\jdk-17
-set PATH=%JAVA_HOME%\\bin;%PATH%
+set JAR_DEST_DIR=D:\fianarana\naina\frameworktest\lib
 
-REM Compiler les fichiers source Java
-javac -d target\\classes src\\main\\java\\*.java
+if not exist bin mkdir bin
 
-REM Créer le fichier JAR
-jar cvf framework-1.0.jar -C target\\classes .
+set CLASSPATH=bin
+for %%a in (%BASE_DIR%\lib\*.jar) do (
+    set CLASSPATH=%CLASSPATH%;%%a
+)
 
-REM Copier le JAR vers le dossier de test
-xcopy framework-1.0.jar %testframework% /y
+echo Compilation java
+for /r %BASE_DIR%\src %%f in (*.java) do javac -classpath %CLASSPATH% -d bin %%f
 
-echo Création du JAR terminée !
+echo Création du fichier JAR...
+jar cf %JAR_DEST_DIR%\framework.jar -C bin .
+
+echo Compilation et création du JAR terminées.

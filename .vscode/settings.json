@@ -1,14 +1,7 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
-    "sqltools.connections": [
-        {
-            "previewLimit": 50,
-            "server": "localhost",
-            "port": 5432,
-            "driver": "PostgreSQL",
-            "name": "huile",
-            "database": "recycoil",
-            "username": "allan"
-        }
+    "java.project.sourcePaths": ["src"],
+    "java.project.outputPath": "bin",
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar"
     ]
 }
