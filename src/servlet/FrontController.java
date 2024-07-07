@@ -2,15 +2,9 @@ package servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.lang.ModuleLayer.Controller;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
-import annotation.AnnotationController;
-import annotation.Get;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,10 +13,8 @@ import models.Mapping;
 import models.ModelView;
 import utils.AnnotationUtils;
 
-
 public class FrontController extends HttpServlet {
 
-    private List<String> controllerNames = new ArrayList<>();
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processRequest(req, resp);
@@ -31,53 +23,70 @@ public class FrontController extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         processRequest(req, resp);
-      
     }
-private void processRequest(HttpServletRequest request, HttpServletResponse response)
-        throws ServletException, IOException {
-    response.setContentType("text/html;charset=UTF-8");
-    try (PrintWriter out = response.getWriter()) {
-        HashMap<String, Mapping> urlMappings = AnnotationUtils.createUrlMappings("controllers");
 
-        String requestUrl = request.getRequestURI().substring(request.getContextPath().length());
+    private void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        response.setContentType("text/html;charset=UTF-8");
+        try (PrintWriter out = response.getWriter()) {
+            HashMap<String, Mapping> urlMappings = AnnotationUtils.createUrlMappings("controllers");
 
-        if (urlMappings.containsKey(requestUrl)) {
-            Mapping mapping = urlMappings.get(requestUrl);
-            
-            try {
-                Class<?> controllerClass = Class.forName("controllers." + mapping.getClassName());
-                Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
-                Method method = controllerClass.getDeclaredMethod(mapping.getMethodName());
-                Object result = method.invoke(controllerInstance);
-                
-                if (result instanceof String) {
-                    out.println((String) result);
-                } else if (result instanceof ModelView) {
-                    ModelView modelView = (ModelView) result;
-                    String url = modelView.getUrl();
-                    HashMap<String, Object> data = modelView.getData();
-                    
-                    for (String key : data.keySet()) {
-                        request.setAttribute(key, data.get(key));
+            String requestUrl = request.getRequestURI().substring(request.getContextPath().length());
+
+            if (urlMappings.containsKey(requestUrl)) {
+                Mapping mapping = urlMappings.get(requestUrl);
+                try {
+                    Class<?> controllerClass = Class.forName("controllers." + mapping.getClassName());
+                    Object controllerInstance = controllerClass.getDeclaredConstructor().newInstance();
+
+                    Method[] methods = controllerClass.getDeclaredMethods();
+                    Method method = null;
+
+                    for (Method m : methods) {
+                        if (m.getName().equals(mapping.getMethodName())) {
+                            method = m;
+                            break;
+                        }
                     }
-                    
-                    request.getRequestDispatcher(url).forward(request, response);
-                } else {
-                    out.println("Type de retour non reconnu");
+
+                    if (method == null) {
+                        out.println("Méthode non trouvée : " + mapping.getMethodName());
+                        return;
+                    }
+
+                    Object[] params = AnnotationUtils.getMethodParameterValues(method, request);
+                    Object result = method.invoke(controllerInstance, params);
+
+                    if (result instanceof String) {
+                        out.println((String) result);
+                    } else if (result instanceof ModelView) {
+                        ModelView modelView = (ModelView) result;
+                        String url = modelView.getUrl();
+                        HashMap<String, Object> data = modelView.getData();
+
+                        if (data != null) {
+                            for (String key : data.keySet()) {
+                                request.setAttribute(key, data.get(key));
+                            }
+                        }
+
+                        String realPath = getServletContext().getRealPath(url);
+                        if (realPath != null) {
+                            request.getRequestDispatcher(url).forward(request, response);
+                        } else {
+                            out.println("Erreur : Impossible de trouver la JSP " + url);
+                        }
+                    } else {
+                        out.println("Type de retour non reconnu");
+                    }
+                } catch (Exception e) {
+                    out.println("Erreur lors de l'appel de la méthode : " + e.getClass().getName());
+                    out.println("Message : " + (e.getMessage() != null ? e.getMessage() : "Aucun message"));
+                    e.printStackTrace(out);
                 }
-            } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-                out.println("Erreur lors de l'appel de la méthode : " + e.getMessage());
-                e.printStackTrace();
+            } else {
+                out.println("URL non trouvée : " + requestUrl);
             }
-        } else {
-            out.println("URL non trouvée : " + requestUrl);
         }
     }
 }
-}
-
-    
-
-    
-
-  
