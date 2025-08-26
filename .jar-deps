@@ -1,7 +1,0 @@
-# Configuration des chemins de dépendances JAR
-# Un chemin par ligne - les JARs seront trouvées récursivement
-# Exemples:
-# /usr/share/tomcat/lib
-# /home/user/.m2/repository
-# /opt/libs
-/usr/share/java/tomcat
