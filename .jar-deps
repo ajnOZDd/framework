@@ -1,0 +1,4 @@
+# Chemins JAR (un par ligne)
+# /usr/share/tomcat/lib
+/usr/share/java/tomcat
+
