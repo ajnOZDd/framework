@@ -2,6 +2,7 @@ package servlet;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -10,8 +11,18 @@ import javax.servlet.http.HttpServletResponse;
 
 import utils.AnnotationUtils;
 
+import java.util.Map;
 
 public class FrontController extends HttpServlet {
+
+    private Map<String, Method> mappings;
+
+    @Override
+    public void init() throws ServletException {
+        // Charger les mappings au démarrage
+        mappings = AnnotationUtils.getUrlMappings("controllers");
+        System.out.println("Mappings chargés: " + mappings.keySet());
+    }
 
     @Override
     protected void doGet(HttpServletRequest rq, HttpServletResponse rs) 
@@ -27,20 +38,25 @@ public class FrontController extends HttpServlet {
 
     public void processRequest(HttpServletRequest rq, HttpServletResponse rs) 
         throws IOException, ServletException {
-    rs.setContentType("text/html;charset=UTF-8");
+        rs.setContentType("text/html;charset=UTF-8");
 
-    try (PrintWriter out = rs.getWriter()) {
-        out.println("<!DOCTYPE html>");
-        out.println("<html><body>");
-        out.println("<h1>FrontController fonctionne!</h1>");
-        out.println("<p>URL: " + rq.getRequestURL() + "</p>");
+        String path = rq.getPathInfo(); // ex: /hello
+        PrintWriter out = rs.getWriter();
 
-        out.println("<h2>Classes annotées @AnnotationController :</h2>");
-        for (Class<?> clazz : AnnotationUtils.getAnnotatedControllers("controllers")) { // ton package
-            out.println("<p>" + clazz.getName() + "</p>");
+        try {
+            Method method = mappings.get(path);
+            if (method != null) {
+                Object controller = method.getDeclaringClass().getDeclaredConstructor().newInstance();
+                Object result = method.invoke(controller);
+                if (result != null) {
+                    out.println(result.toString());
+                }
+            } else {
+                rs.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                out.println("<h1>404 - Page introuvable</h1>");
+            }
+        } catch (Exception e) {
+            e.printStackTrace(out);
         }
-
-        out.println("</body></html>");
     }
-}
 }
