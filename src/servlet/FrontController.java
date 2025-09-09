@@ -1,62 +1,69 @@
 package servlet;
 
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.lang.reflect.Method;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import utils.AnnotationUtils;
 
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.Map;
 
+/**
+ * FrontController minimal - juste des appels aux utilitaires
+ */
 public class FrontController extends HttpServlet {
 
     private Map<String, Method> mappings;
 
     @Override
     public void init() throws ServletException {
-        // Charger les mappings au démarrage
-        mappings = AnnotationUtils.getUrlMappings("controllers");
-        System.out.println("Mappings chargés: " + mappings.keySet());
+        String packageName = getServletConfig().getInitParameter("controllers-package");
+        if (packageName == null) packageName = "controllers";
+        
+        mappings = AnnotationUtils.getUrlMappings(packageName);
+        System.out.println("✅ " + mappings.size() + " mappings chargés");
     }
 
     @Override
-    protected void doGet(HttpServletRequest rq, HttpServletResponse rs) 
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
-        processRequest(rq, rs);
+        processRequest(request, response);
     }
 
     @Override
-    protected void doPost(HttpServletRequest rq, HttpServletResponse rs) 
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws IOException, ServletException {
-        processRequest(rq, rs);
+        processRequest(request, response);
     }
 
-    public void processRequest(HttpServletRequest rq, HttpServletResponse rs) 
-        throws IOException, ServletException {
-        rs.setContentType("text/html;charset=UTF-8");
+    private void processRequest(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+        
+        String path = request.getPathInfo();
+        if (path == null) path = "/";
 
-        String path = rq.getPathInfo(); // ex: /hello
-        PrintWriter out = rs.getWriter();
+        // Ressources statiques
+        if (AnnotationUtils.isStaticResource(path)) {
+            getServletContext().getNamedDispatcher("default").forward(request, response);
+            return;
+        }
+
+        // Pas de mapping trouvé
+        if (!mappings.containsKey(path)) {
+            AnnotationUtils.sendNotFound(response, path, mappings);
+            return;
+        }
 
         try {
+            // Invoquer le contrôleur et traiter le résultat
             Method method = mappings.get(path);
-            if (method != null) {
-                Object controller = method.getDeclaringClass().getDeclaredConstructor().newInstance();
-                Object result = method.invoke(controller);
-                if (result != null) {
-                    out.println(result.toString());
-                }
-            } else {
-                rs.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                out.println("<h1>404 - Page introuvable</h1>");
-            }
+            Object result = AnnotationUtils.invokeController(method);
+            AnnotationUtils.handleResult(request, response, result);
+            
         } catch (Exception e) {
-            e.printStackTrace(out);
+            response.setStatus(500);
+            response.getWriter().println("❌ Erreur: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 }
